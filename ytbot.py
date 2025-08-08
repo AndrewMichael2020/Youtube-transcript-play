@@ -15,6 +15,13 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings  # OpenAI LLM and embe
 from langchain_community.vectorstores import FAISS  # For efficient vector storage and similarity search
 from langchain.chains import LLMChain  # For creating chains of operations with LLMs
 from langchain.prompts import PromptTemplate  # For defining prompt templates
+# Default fallback transcript text (ignored unless user edits/replaces it)
+DEFAULT_FALLBACK_TRANSCRIPT = (
+    "FALLBACK TRANSCRIPT (replace this with a real transcript if desired)\n\n"
+    "Text: In this tutorial, we cover Python basics including variables, loops, and functions. Start: 0.0\n"
+    "Text: We then build a small project to practice these concepts step by step. Start: 45.2\n"
+    "Text: Finally, we summarize key takeaways and provide tips for next steps. Start: 120.7\n"
+)
 
 
 
@@ -337,7 +344,8 @@ def generate_answer(question, faiss_index, qa_chain, k=7):
 # Initialize an empty string to store the processed transcript after fetching and preprocessing
 processed_transcript = ""
 
-def summarize_video(video_url):
+
+def summarize_video(video_url, pasted_transcript=""):
     """
     Title: Summarize Video
 
@@ -354,7 +362,9 @@ def summarize_video(video_url):
     global fetched_transcript, processed_transcript
     
     
-    if video_url:
+    if pasted_transcript and pasted_transcript.strip() and pasted_transcript.strip() != DEFAULT_FALLBACK_TRANSCRIPT.strip():
+        processed_transcript = pasted_transcript.strip()
+    elif video_url:
         # Fetch and preprocess transcript
         fetched_transcript = get_transcript(video_url)
         processed_transcript = process(fetched_transcript)
@@ -379,7 +389,7 @@ def summarize_video(video_url):
         return "No transcript available. Please fetch the transcript first."
 
 
-def answer_question(video_url, user_question):
+def answer_question(video_url, user_question, pasted_transcript=""):
     """
     Title: Answer User's Question
 
@@ -400,12 +410,14 @@ def answer_question(video_url, user_question):
 
     # Check if the transcript needs to be fetched
     if not processed_transcript:
-        if video_url:
+        if pasted_transcript and pasted_transcript.strip() and pasted_transcript.strip() != DEFAULT_FALLBACK_TRANSCRIPT.strip():
+            processed_transcript = pasted_transcript.strip()
+        elif video_url:
             # Fetch and preprocess transcript
             fetched_transcript = get_transcript(video_url)
             processed_transcript = process(fetched_transcript)
         else:
-            return "Please provide a valid YouTube URL."
+            return "Please provide a valid YouTube URL or paste a transcript."
 
     if processed_transcript and user_question:
         # Step 1: Chunk the transcript (only for Q&A)
@@ -447,6 +459,9 @@ with gr.Blocks() as interface:
     question_input = gr.Textbox(label="Ask a Question About the Video", placeholder="Ask your question")
     answer_output = gr.Textbox(label="Answer to Your Question", lines=5)
 
+    # Optional manual transcript paste (fallback when fetching is blocked)
+    pasted_transcript = gr.Textbox(label="Paste transcript (optional)", lines=10, placeholder="Paste full transcript here to bypass fetching", value=DEFAULT_FALLBACK_TRANSCRIPT)
+
     # Buttons for selecting functionalities after fetching transcript
     summarize_btn = gr.Button("Summarize Video")
     question_btn = gr.Button("Ask a Question")
@@ -455,8 +470,8 @@ with gr.Blocks() as interface:
     transcript_status = gr.Textbox(label="Transcript Status", interactive=False)
 
     # Set up button actions
-    summarize_btn.click(summarize_video, inputs=video_url, outputs=summary_output)
-    question_btn.click(answer_question, inputs=[video_url, question_input], outputs=answer_output)
+    summarize_btn.click(summarize_video, inputs=[video_url, pasted_transcript], outputs=summary_output)
+    question_btn.click(answer_question, inputs=[video_url, question_input, pasted_transcript], outputs=answer_output)
 
 # Launch the app with specified server name and port
 interface.launch(server_name="0.0.0.0", server_port=7860)

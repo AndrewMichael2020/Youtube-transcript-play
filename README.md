@@ -24,6 +24,7 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 - Public videos often work without cookies. YouTube may block cloud IPs.
 - If needed, add `youtube_cookies.txt` (Netscape format) to the project root. The app will automatically load only the essential cookies.
 - Proxies: set `YT_HTTP_PROXY` and `YT_HTTPS_PROXY` if you must use a residential proxy. Proxies are ignored when cookies are present.
+- Manual fallback: paste a transcript in the "Paste transcript (optional)" box to bypass fetching entirely.
 
 ## Run
 ```
